@@ -1,5 +1,4 @@
 import scrapy
-# from ..items import ScholarItem
 import pandas as pd
 
 class ScholarsSpider(scrapy.Spider):

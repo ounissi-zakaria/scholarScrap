@@ -1,5 +1,4 @@
 import scrapy
-from ..items import PaperItem
 import pandas as pd
 from datetime import date
 import json
