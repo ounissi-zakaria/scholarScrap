@@ -18,7 +18,9 @@ class ScholarsSpider(scrapy.Spider):
         csv = pd.read_csv(self.input)
         for id, value in csv.iterrows():
             url = scholar_base_url % value["full_name"].replace(" ","+")
-            yield scrapy.Request(url, callback=self.parse_scholars, meta={"full_name":value["full_name"], "auth":value["auth"], "id": id})
+            yield scrapy.Request(url, callback=self.parse_scholars, meta={"full_name":value["full_name"],
+                                                                            "auth":value["auth"],
+                                                                            "author_id": id})
 
     def parse_scholars(self, response):
         scholars = response.css("div.gs_ai_t")
@@ -26,10 +28,12 @@ class ScholarsSpider(scrapy.Spider):
             scholar_auth = scholar.css("div.gs_ai_eml::text").get()
             if response.meta["auth"] in scholar_auth:
                 scholar_url = scholar.css("h3 a::attr(href)").get()
-                self.d["authors_ids"][response.meta["full_name"]] = response.meta["id"]
-                self.d["data"][response.meta["id"]] = []
+                self.d["authors_ids"][response.meta["full_name"]] = response.meta["author_id"]
+                self.d["data"][response.meta["author_id"]] = []
                 url = self.base_url + scholar_url + "&pagesize=100&cstart=%s"
-                yield scrapy.Request(url % 0, callback=self.parse_papers, meta={"page": 100, "url": url, "id":response.meta["id"]})
+                yield scrapy.Request(url % 0, callback=self.parse_papers, meta={"page": 100,
+                                                                                "url": url,
+                                                                                "author_id":response.meta["author_id"]})
                 break
 
 
@@ -47,9 +51,12 @@ class ScholarsSpider(scrapy.Spider):
                 item["title"] = title
                 item["year"] = year
                 item["citations"] = citations
-                self.d["data"][response.meta["id"]].append(item)
+                self.d["data"][response.meta["author_id"]].append(item)
                 yield item
-            yield scrapy.Request(response.meta["url"] % response.meta["page"], callback=self.parse_papers, meta={"page":response.meta["page"] + 100, "url":response.meta["url"], "id":response.meta["id"]})
+            yield scrapy.Request(response.meta["url"] % response.meta["page"], callback=self.parse_papers, meta={"page":response.meta["page"] + 100,
+                                "url":response.meta["url"],
+                                "author_id":response.meta["author_id"]})
+
 
     def closed(self, reason):
         if reason == "finished":
