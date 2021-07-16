@@ -3,9 +3,10 @@ import pandas as pd
 from datetime import date
 import json
 
+
 class ScholarsSpider(scrapy.Spider):
-    name = 'scholars'
-    allowed_domains = ['scholar.google.com']
+    name = "scholars"
+    allowed_domains = ["scholar.google.com"]
     base_url = "https://scholar.google.com"
 
     d = {}
@@ -14,13 +15,21 @@ class ScholarsSpider(scrapy.Spider):
     d["data"] = {}
 
     def start_requests(self):
-        scholar_base_url = 'https://scholar.google.com/citations?view_op=search_authors&mauthors=%s'
+        scholar_base_url = (
+            "https://scholar.google.com/citations?view_op=search_authors&mauthors=%s"
+        )
         csv = pd.read_csv(self.input)
         for id, value in csv.iterrows():
-            url = scholar_base_url % value["full_name"].replace(" ","+")
-            yield scrapy.Request(url, callback=self.parse_scholars, meta={"full_name":value["full_name"],
-                                                                            "auth":value["auth"],
-                                                                            "author_id": id})
+            url = scholar_base_url % value["full_name"].replace(" ", "+")
+            yield scrapy.Request(
+                url,
+                callback=self.parse_scholars,
+                meta={
+                    "full_name": value["full_name"],
+                    "auth": value["auth"],
+                    "author_id": id,
+                },
+            )
 
     def parse_scholars(self, response):
         scholars = response.css("div.gs_ai_t")
@@ -28,14 +37,21 @@ class ScholarsSpider(scrapy.Spider):
             scholar_auth = scholar.css("div.gs_ai_eml::text").get()
             if response.meta["auth"] in scholar_auth:
                 scholar_url = scholar.css("h3 a::attr(href)").get()
-                self.d["authors_ids"][response.meta["full_name"]] = response.meta["author_id"]
+                self.d["authors_ids"][response.meta["full_name"]] = response.meta[
+                    "author_id"
+                ]
                 self.d["data"][response.meta["author_id"]] = []
                 url = self.base_url + scholar_url + "&pagesize=100&cstart=%s"
-                yield scrapy.Request(url % 0, callback=self.parse_papers, meta={"page": 100,
-                                                                                "url": url,
-                                                                                "author_id":response.meta["author_id"]})
+                yield scrapy.Request(
+                    url % 0,
+                    callback=self.parse_papers,
+                    meta={
+                        "page": 100,
+                        "url": url,
+                        "author_id": response.meta["author_id"],
+                    },
+                )
                 break
-
 
     def parse_papers(self, response):
         papers = response.css("tr.gsc_a_tr")
@@ -53,12 +69,17 @@ class ScholarsSpider(scrapy.Spider):
                 item["citations"] = citations
                 self.d["data"][response.meta["author_id"]].append(item)
                 yield item
-            yield scrapy.Request(response.meta["url"] % response.meta["page"], callback=self.parse_papers, meta={"page":response.meta["page"] + 100,
-                                "url":response.meta["url"],
-                                "author_id":response.meta["author_id"]})
-
+            yield scrapy.Request(
+                response.meta["url"] % response.meta["page"],
+                callback=self.parse_papers,
+                meta={
+                    "page": response.meta["page"] + 100,
+                    "url": response.meta["url"],
+                    "author_id": response.meta["author_id"],
+                },
+            )
 
     def closed(self, reason):
         if reason == "finished":
-            with open("output.json","w+") as f:
-                json.dump(self.d,f)
+            with open("output.json", "w+") as f:
+                json.dump(self.d, f)
